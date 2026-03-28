@@ -701,131 +701,6 @@ def render_conversion_tab():
                     cleanup_temp_file(tgt_path)
 
 # ============================================================================
-# Training Tab
-# ============================================================================
-
-def render_training_tab():
-    """Render Training tab"""
-    st.markdown(
-        """
-        <div class="card">
-            <strong>Custom Model Training</strong><br>
-            Upload your dataset to train custom speech models. Requires a ZIP file with audio files
-            and transcripts in the correct format.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    
-    # Dataset upload
-    st.markdown("### Dataset")
-    dataset_zip = st.file_uploader("Upload ZIP archive", type=["zip"], key="training_zip")
-    
-    if dataset_zip is not None:
-        validate_dataset_upload(dataset_zip)
-    
-    # Configuration
-    st.markdown("### Configuration")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        model_type = st.selectbox("Model type", options=["tts", "asr"])
-    with col2:
-        epochs = st.number_input("Epochs", min_value=1, max_value=1000, value=100, step=10)
-    with col3:
-        batch_size = st.number_input("Batch size", min_value=1, max_value=128, value=16, step=4)
-    
-    config = generate_training_config(
-        model_type=model_type,
-        epochs=int(epochs),
-        batch_size=int(batch_size),
-    )
-    
-    with st.expander("View configuration"):
-        st.code(config, language="json")
-        st.download_button(
-            label="Download config",
-            data=config,
-            file_name="training_config.json",
-            mime="application/json",
-        )
-    
-    # Simulation
-    st.markdown("### Training Simulation")
-    demo_epochs = st.slider("Simulation epochs", min_value=5, max_value=30, value=10)
-    
-    if st.button("Start Simulation", type="primary"):
-        run_training_simulation(demo_epochs)
-
-def validate_dataset_upload(zip_file):
-    """Validate uploaded dataset ZIP"""
-    zip_path = None
-    try:
-        zip_path = save_uploaded_file(zip_file)
-        summary = validate_dataset(zip_path)
-        
-        col1, col2, col3 = st.columns(3)
-        metrics = [
-            ("Total Files", summary['total_files']),
-            ("Audio Files", summary['audio_files']),
-            ("Transcripts", summary['text_files']),
-        ]
-        for col, (label, value) in zip([col1, col2, col3], metrics):
-            col.markdown(
-                f"""
-                <div class="metric">
-                    <div class="metric-label">{label}</div>
-                    <div class="metric-value">{value}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        
-        if summary["warnings"]:
-            for w in summary["warnings"]:
-                st.warning(w)
-        else:
-            st.success("Dataset ready for training")
-    
-    except Exception as exc:
-        st.error(f"Validation failed: {exc}")
-    finally:
-        if zip_path:
-            cleanup_temp_file(zip_path)
-
-def run_training_simulation(epochs: int):
-    """Run training simulation with live updates"""
-    progress_bar = st.progress(0)
-    status = st.empty()
-    chart = st.empty()
-    
-    losses = []
-    accuracies = []
-    
-    for ep in range(1, epochs + 1):
-        step = mock_training_step(ep, epochs)
-        losses.append(step["loss"])
-        accuracies.append(step["accuracy"])
-        
-        progress_bar.progress(int(step["progress_pct"]))
-        status.text(
-            f"Epoch {ep}/{epochs} | Loss: {step['loss']:.4f} | Acc: {step['accuracy']:.4f}"
-        )
-        
-        chart_data = pd.DataFrame({
-            "Loss": losses,
-            "Accuracy": accuracies,
-        }, index=range(1, ep + 1))
-        chart.line_chart(chart_data)
-        
-        time.sleep(0.2)
-    
-    progress_bar.progress(100)
-    status.success(
-        f"Complete! Final loss: {losses[-1]:.4f}, accuracy: {accuracies[-1]:.4f}"
-    )
-
-# ============================================================================
 # Footer
 # ============================================================================
 
@@ -857,8 +732,8 @@ def main():
     render_hero()
     
     # Main tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Transcription", "Text-to-Speech", "Voice Cloning", "Voice Conversion", "Training"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Transcription", "Text-to-Speech", "Voice Cloning", "Voice Conversion"
     ])
     
     with tab1:
@@ -872,9 +747,6 @@ def main():
     
     with tab4:
         render_conversion_tab()
-    
-    with tab5:
-        render_training_tab()
     
     # Footer
     render_footer()
